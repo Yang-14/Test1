@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>楊的工作台  | Yang's Workbench</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #ffffff;
+            color: #333333;
+            font-size: 15px;
+        }
+        .header-bar {
+            background-color: #003366;
+            color: #ffffff;
+            padding: 20px 0;
+            border-bottom: 3px solid #cc0000;
+        }
+        .header-bar h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0;
+        }
+        .header-bar p {
+            font-size: 18px;
+            color: #cccccc;
+            margin: 5px 0 0 0;
+        }
+        .main-container {
+            margin-top: 30px;
+            margin-bottom: 50px;
+        }
+        .control-panel {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            margin-bottom: 25px;
+            overflow: visible; /* 确保子元素溢出时可见 */
+        }
+        .search-input {
+            border-radius: 0;
+            border: 1px solid #ced4da;
+        }
+        /* 分类按钮容器样式 - 核心修改：移除滚动条，允许横向溢出 */
+        #filterGroup {
+            display: flex;
+            gap: 8px; /* 按钮之间统一间距 */
+            margin-top: 12px; /* 与搜索栏的垂直间距 */
+            flex-wrap: nowrap; /* 强制单行排列 */
+            width: max-content; /* 宽度自适应内容，不被父容器限制 */
+        }
+        /* 分类按钮样式 - 统一大小 */
+        .filter-btn {
+            border-radius: 0;
+            border: 1px solid #6c757d;
+            color: #333;
+            min-width: 90px; /* 统一最小宽度，适配最长文字 */
+            text-align: center;
+            white-space: nowrap; /* 禁止文字换行 */
+            flex-shrink: 0; /* 防止按钮被压缩变形 */
+            padding: 4px 8px; /* 统一内边距 */
+        }
+        .filter-btn.active {
+            background-color: #003366;
+            border-color: #003366;
+            color: white;
+        }
+        .tool-card {
+            border: 1px solid #dee2e6;
+            border-radius: 0;
+            height: 100%;
+            transition: box-shadow 0.2s;
+        }
+        .tool-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .tool-card.pinned {
+            border-left: 4px solid #ffc107;
+            background-color: #fffef8;
+        }
+        .card-header {
+            background-color: #ffffff;
+            border-bottom: 1px solid #dee2e6;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .tool-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: #003366;
+            margin-bottom: 0;
+            padding-right: 10px;
+        }
+        .star-btn {
+            background: none;
+            border: none;
+            color: #ccc;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .star-btn:hover {
+            color: #ffc107;
+        }
+        .star-btn.filled {
+            color: #ffc107;
+        }
+        .tool-link {
+            font-size: 16px;
+            color: #0066cc;
+            text-decoration: none;
+            word-break: break-all;
+            display: block;
+            margin-top: 5px;
+        }
+        .tool-link:hover {
+            text-decoration: underline;
+        }
+        .card-body {
+            padding: 15px;
+        }
+        .tool-desc {
+            color: #444;
+            margin-bottom: 10px;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+        .tag-badge {
+            background-color: #e9ecef;
+            color: #495057;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 0;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            display: inline-block;
+        }
+        .pagination-container {
+            margin-top: 30px;
+            display: flex;
+            justify-content: center;
+        }
+        .page-link {
+            color: #003366;
+            border-radius: 0;
+        }
+        .page-item.active .page-link {
+            background-color: #003366;
+            border-color: #003366;
+        }
+        .export-btn {
+            background-color: #003366;
+            color: white;
+            border-radius: 0;
+            border: none;
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+        .export-btn:hover {
+            background-color: #002244;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <div class="container">
+            <h1>楊的工作台</h1>
+            <p>Yang's Workbench</p>
+        </div>
+    </div>
+
+    <div class="container main-container">
+        <div class="control-panel">
+            <div class="row g-3">
+                <!-- 搜索栏与分类按钮保持同一列，实现左边界对齐 -->
+                <div class="col-md-6">
+                    <input type="text" id="searchInput" class="form-control search-input" placeholder="搜索网站名称、描述或关键词...">
+                    <!-- 分类按钮容器：宽度自适应内容，超出搜索框时自动向右延伸 -->
+                    <div id="filterGroup">
+                        <button class="btn btn-sm filter-btn active" data-category="all">全部</button>
+                        <button class="btn btn-sm filter-btn" data-category="database">综合数据库</button>
+                        <button class="btn btn-sm filter-btn" data-category="resource">文献资源</button>
+                        <button class="btn btn-sm filter-btn" data-category="sequence">基因与转录组</button>
+                        <button class="btn btn-sm filter-btn" data-category="protein">蛋白分析</button>
+                        <button class="btn btn-sm filter-btn" data-category="multi-omics">多组学分析</button>
+                        <button class="btn btn-sm filter-btn" data-category="material">试剂与耗材</button>
+                        <button class="btn btn-sm filter-btn" data-category="tool">通用工具</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row row-cols-1 row-cols-md-2 g-4" id="toolGrid">
+        </div>
+
+        <div class="pagination-container">
+            <nav>
+                <ul class="pagination" id="pagination">
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <script>
+        const tools = [
+            {
+                id: 1,
+                name: "Rice ID conversion tool - 水稻基因ID转换工具",
+                url: "https://bioinformatics.fafu.edu.cn/riceidtable/",
+                description: "专门用于在不同数据库格式（RAP-DB、RGAP、MSU等）之间转换水稻基因标识符的工具",
+                category: "tool",
+                tags: ["数据处理", "水稻", "ID转换"]
+            },
+            {
+                id: 2,
+                name: "trimAl - 多序列比对修剪工具",
+                url: "https://vicfero.github.io/trimal/",
+                description: "自动化工具，用于修剪多序列比对结果，去除比对质量差的区域和空位，专为系统进化分析优化",
+                category: "tool",
+                tags: ["数据处理", "系统发育分析", "序列比对"]
+            },
+            {
+                id: 3,
+                name: "iTOL - 系统进化树可视化",
+                url: "https://itol.embl.de/",
+                description: "交互式系统发育树可视化和注释工具，支持多种树格式和丰富的注释功能",
+                category: "tool",
+                tags: ["数据处理", "可视化", "系统发育分析"]
+            },
+            {
+                id: 4,
+                name: "DeepSeek - 深度求索",
+                url: "https://chat.deepseek.com/",
+                description: "AI驱动的聊天机器人和大语言模型平台",
+                category: "tool",
+                tags: ["人工智能", "大语言模型", "聊天机器人"]
+            },
+            {
+                id: 5,
+                name: "ChatGPT",
+                url: "https://www.chatgpt.com/",
+                description: "OpenAI的AI大语言模型",
+                category: "tool",
+                tags: ["人工智能", "大语言模型", "聊天机器人"]
+            },
+            {
+                id: 6,
+                name: "Primer3Plus - 引物设计",
+                url: "https://www.primer3plus.com/",
+                description: "基于网页的高质量PCR引物、qPCR引物设计工具，支持自定义参数设置",
+                category: "tool",
+                tags: ["引物设计", "PCR"]
+            },
+            {
+                id: 7,
+                name: "T-DNA Primer Design - T-DNA引物设计",
+                url: "http://signal.salk.edu/tdnaprimers.2.html",
+                description: "自动化工具，用于设计PCR引物以验证拟南芥和其他植物中的T-DNA插入突变体",
+                category: "tool",
+                tags: ["引物设计", "T-DNA", "PCR"]
+            },
+            {
+                id: 8,
+                name: "bioDBnet: db2db",
+                url: "https://biodbnet-abcc.ncifcrf.gov/db/db2db.php",
+                description: "不同数据库间标识符转换工具，支持在多种生物数据库之间转换基因ID、蛋白ID等标识符",
+                category: "tool",
+                tags: ["数据处理", "ID转换"]
+            },
+            {
+                id: 9,
+                name: "NCBI - BLAST",
+                url: "https://blast.ncbi.nlm.nih.gov/Blast.cgi",
+                description: "基本局部比对搜索工具，用于比较核苷酸或蛋白质序列，寻找同源序列",
+                category: "sequence",
+                tags: ["BLAST", "序列比对", "同源性搜索"]
+            },
+            {
+                id: 10,
+                name: "MEME - 基序发现工具",
+                url: "https://meme-suite.org/meme/tools/meme",
+                description: "MEME用于在一系列相关DNA、RNA或蛋白序列中发现新的或已知的序列基序（Motif）",
+                category: "sequence",
+                tags: ["基序发现", "序列分析", "功能注释"]
+            },
+            {
+                id: 11,
+                name: "NCBI - DAVID",
+                url: "https://davidbioinformatics.nih.gov/home.jsp",
+                description: "DAVID提供全面的功能注释工具集，帮助理解大规模基因列表的生物学意义",
+                category: "sequence",
+                tags: ["序列分析", "GO", "功能注释"]
+            },
+            {
+                id: 12,
+                name: "NCBI - PubMed",
+                url: "https://pubmed.ncbi.nlm.nih.gov/",
+                description: "Pubmed是全球最大的生物医学文献数据库，用于检索和查找生物医学及生命科学领域的文献",
+                category: "resource",
+                tags: ["文献检索", "外文文献"]
+            },
+            {
+                id: 13,
+                name: "Web of Science - 科睿唯安",
+                url: "https://webofscience.clarivate.cn/wos/alldb/basic-search",
+                description: "综合性学术文献数据库，涵盖科学、工程、医学等多个领域，支持引文分析",
+                category: "resource",
+                tags: ["文献检索", "外文文献"]
+            },
+            {
+                id: 14,
+                name: "CNKI - 中国知网",
+                url: "https://www.cnki.net/",
+                description: "中国学术文献数据库，收录了大量中文期刊、学位论文和会议论文",
+                category: "resource",
+                tags: ["中文文献", "文献检索"]
+            },
+            {
+                id: 15,
+                name: "Google Scholar - 谷歌学术",
+                url: "https://scholar.google.com/",
+                description: "谷歌提供的学术文献搜索引擎，广泛收录全球各领域的学术论文和书籍",
+                category: "resource",
+                tags: ["文献检索", "外文文献"]
+            },
+            {
+                id: 16,
+                name: "InterPro",
+                url: "https://www.ebi.ac.uk/interpro/",
+                description: "InterPro通过将蛋白质分类到家族并预测结构域来提供蛋白质功能分析",
+                category: "protein",
+                tags: ["蛋白质数据库", "蛋白序列分析", "功能注释", "结构域分析"]
+            },
+            {
+                id: 17,
+                name: "UniProt",
+                url: "https://www.uniprot.org/",
+                description: "UniProt是全面的蛋白质序列和注释数据资源库，提供高质量的蛋白质信息",
+                category: "protein",
+                tags: ["蛋白质数据库", "蛋白序列分析", "功能注释", "结构域分析"]
+            },
+            {
+                id: 18,
+                name: "Pfam",
+                url: "http://pfam.xfam.org/",
+                description: "Pfam收录了大量的蛋白质家族数据，每个家族由多序列比对和隐马尔可夫模型表示",
+                category: "protein",
+                tags: ["蛋白质数据库", "蛋白序列分析", "隐马尔可夫模型", "功能注释"]
+            },
+            {
+                id: 19,
+                name: "RCSB PDB",
+                url: "https://www.rcsb.org/",
+                description: "RCSB蛋白质数据库提供蛋白质、核酸和复杂组装体的3D结构数据访问",
+                category: "protein",
+                tags: ["蛋白质数据库", "蛋白序列分析", "3D结构", "结构域分析"]
+            },
+            {
+                id: 20,
+                name: "SOPMA",
+                url: "https://npsa-pbil.ibcp.fr/cgi-bin/npsa_automat.pl?page=npsa_sopma.html",
+                description: "SOPMA方法用于预测蛋白质的二级结构，包括α-螺旋、β-折叠、转角和无规卷曲",
+                category: "protein",
+                tags: ["蛋白序列分析", "二级结构", "预测分析"]
+            },
+            {
+                id: 21,
+                name: "DeepTMHMM",
+                url: "https://dtu.biolib.com/DeepTMHMM",
+                description: "DeepTMHMM使用深度神经网络预测α和β跨膜蛋白的拓扑结构",
+                category: "protein",
+                tags: ["蛋白序列分析", "跨膜域", "预测分析"]
+            },
+            {
+                id: 22,
+                name: "SignalP - 6.0",
+                url: "https://services.healthtech.dtu.dk/services/SignalP-6.0/",
+                description: "SignalP 6.0预测蛋白质中信号肽的存在及其切割位点",
+                category: "protein",
+                tags: ["蛋白序列分析", "信号肽", "预测分析"]
+            },
+            {
+                id: 23,
+                name: "Plant-mPLoc",
+                url: "http://www.csbio.sjtu.edu.cn/bioinf/plant-multi/",
+                description: "Plant-mPloc用于预测植物蛋白质的亚细胞定位情况",
+                category: "protein",
+                tags: ["蛋白序列分析", "亚细胞定位", "植物", "预测分析"]
+            },
+            {
+                id: 24,
+                name: "ProtParam",
+                url: "https://web.expasy.org/protparam/",
+                description: "ProtParam用于计算给定蛋白质序列的各种物理和化学参数",
+                category: "protein",
+                tags: ["蛋白序列分析", "理化性质"]
+            },
+            {
+                id: 25,
+                name: "SMART",
+                url: "https://smart.embl.de/smart/change_mode.cgi",
+                description: "SMART用于识别和注释蛋白质中的结构域和功能位点",
+                category: "protein",
+                tags: ["蛋白序列分析", "结构域", "功能注释"]
+            },
+            {
+                id: 26,
+                name: "ATTED-II",
+                url: "https://atted.jp/",
+                description: "ATTED-II提供共调控基因关系数据，用于预测基因功能",
+                category: "multi-omics",
+                tags: ["共表达", "功能注释"]
+            },
+            {
+                id: 27,
+                name: "BAR - 植物生物信息学分析资源",
+                url: "https://bar.utoronto.ca/",
+                description: "多伦多大学植物生物信息学分析资源，提供多种植物基因表达和功能分析工具",
+                category: "multi-omics",
+                tags: ["共表达", "功能注释", "植物"]
+            },
+            {
+                id: 28,
+                name: "RiceXpro",
+                url: "https://ricexpro.dna.affrc.go.jp/",
+                description: "水稻基因表达谱数据库，提供不同组织、发育阶段和处理条件下的基因表达数据",
+                category: "multi-omics",
+                tags: ["共表达", "功能注释", "水稻"]
+            },
+            {
+                id: 29,
+                name: "KEGG",
+                url: "https://www.kegg.jp/",
+                description: "KEGG是理解生物系统高级功能和效用的数据库，可通过KEGG富集分析基因通路",
+                category: "multi-omics",
+                tags: ["KEGG", "功能注释", "通路分析"]
+            },
+            {
+                id: 30,
+                name: "Gene Ontology Resource",
+                url: "https://www.geneontology.org/",
+                description: "Gene Ontology Resource是世界上最大的基因功能信息注释数据库",
+                category: "multi-omics",
+                tags: ["GO", "功能注释"]
+            },
+            {
+                id: 31,
+                name: "Rice RNA-Seq database",
+                url: "https://plantrnadb.com/ricerna/",
+                description: "专门用于水稻RNA-Seq表达分析的数据库，整合了大量水稻转录组数据",
+                category: "multi-omics",
+                tags: ["RNA-Seq", "表达分析", "水稻"]
+            },
+            {
+                id: 32,
+                name: "Plant Regulomics",
+                url: "http://119.78.67.240/plant-regulomics/",
+                description: "植物调控组学数据库，用于植物基因调控网络分析",
+                category: "multi-omics",
+                tags: ["调控网络", "功能注释", "植物"]
+            },
+            {
+                id: 33,
+                name: "China Rice Data Center - 国家水稻数据中心",
+                url: "https://www.ricedata.cn/gene/",
+                description: "国家水稻数据中心提供水稻的遗传和分子生物学数据，包括基因和QTL信息",
+                category: "database",
+                tags: ["数据库", "水稻", "基因", "QTL"]
+            },
+            {
+                id: 34,
+                name: "NCBI - Home Page",
+                url: "https://www.ncbi.nlm.nih.gov/",
+                description: "美国国家生物技术信息中心，提供生物医学和基因组信息的访问",
+                category: "database",
+                tags: ["数据库", "基因组"]
+            },
+            {
+                id: 35,
+                name: "NCBI - Batch Entrez",
+                url: "https://www.ncbi.nlm.nih.gov/sites/batchentrez",
+                description: "Batch Entrez可根据一组登录号或标识符从NCBI批量下载与之对应的序列",
+                category: "tool",
+                tags: ["数据处理", "数据获取"]
+            },
+            {
+                id: 36,
+                name: "TAIR - 拟南芥信息资源",
+                url: "https://www.arabidopsis.org/",
+                description: "TAIR包含拟南芥的遗传和分子生物学数据，是模式植物研究的核心资源库",
+                category: "database",
+                tags: ["数据库", "拟南芥", "基因组"]
+            },
+            {
+                id: 37,
+                name: "EnsemblPlants",
+                url: "https://plants.ensembl.org/index.html",
+                description: "Ensembl Plants提供植物的基因组规模数据，包括序列、变异和功能数据",
+                category: "database",
+                tags: ["数据库", "植物", "基因组"]
+            },
+            {
+                id: 38,
+                name: "RGAP",
+                url: "https://rice.uga.edu/index.shtml",
+                description: "RGAP - 水稻基因组注释项目提供水稻12条染色体的基因组序列和注释",
+                category: "database",
+                tags: ["数据库", "水稻", "基因组"]
+            },
+            {
+                id: 39,
+                name: "RAP-DB",
+                url: "https://rapdb.dna.naro.go.jp/",
+                description: "RAP-DB提供准确及时的水稻参考基因组注释，基于IRGSP-1.0基因组",
+                category: "database",
+                tags: ["数据库", "水稻", "基因组"]
+            },
+            {
+                id: 40,
+                name: "Phytozome",
+                url: "https://phytozome-next.jgi.doe.gov/",
+                description: "Phytozome提供植物基因组访问和统一注释，用于比较基因组学研究",
+                category: "database",
+                tags: ["数据库", "植物", "基因组"]
+            },
+            {
+                id: 41,
+                name: "STRING",
+                url: "https://string-db.org/",
+                description: "STRING是已知和预测的蛋白质-蛋白质相互作用数据库",
+                category: "protein",
+                tags: ["蛋白序列分析", "蛋白质互作", "功能富集"]
+            },
+            {
+                id: 42,
+                name: "MBKbase",
+                url: "https://www.mbkbase.org/",
+                description: "中国科学院分子模块设计育种系统专项的整合数据库，收集群体测序、种质资源和表型数据",
+                category: "database",
+                tags: ["数据库", "种质资源", "基因组"]
+            },
+            {
+                id: 43,
+                name: "CNCB - 国家生物信息中心",
+                url: "https://www.cncb.ac.cn/",
+                description: "中国国家生物信息中心，负责全球生物信息的汇交、存储、管理和前沿研究",
+                category: "database",
+                tags: ["数据库", "生物信息中心"]
+            },
+            {
+                id: 44,
+                name: "Oryzabase",
+                url: "https://shigen.nig.ac.jp/rice/oryzabase/locale/change?lang=en",
+                description: "日本国立遗传学研究所的水稻综合数据库，包含种质资源、突变体、基因和图谱信息",
+                category: "database",
+                tags: ["数据库", "水稻", "种质资源"]
+            },
+            {
+                id: 45,
+                name: "Ricefrend - 水稻基因共表达数据库",
+                url: "https://ricefrend.dna.affrc.go.jp/",
+                description: "水稻基因共表达数据库，提供水稻基因的共表达网络和功能预测",
+                category: "multi-omics",
+                tags: ["水稻", "共表达", "功能预测"]
+            },
+            {
+                id: 46,
+                name: "PlantCARE",
+                url: "https://bioinformatics.psb.ugent.be/webtools/plantcare/html/",
+                description: "植物顺式作用调控元件数据库，提供启动子序列的计算机分析工具",
+                category: "sequence",
+                tags: ["顺式作用元件", "启动子分析", "调控元件"]
+            },
+            {
+                id: 47,
+                name: "Calmodulin Target Database",
+                url: "http://calcium.uhnres.utoronto.ca/ctdb/ctdb/home.html",
+                description: "钙调蛋白靶标数据库，提供预测蛋白质是否含有钙调蛋白结合序列的工具",
+                category: "protein",
+                tags: ["钙调蛋白", "蛋白质结合", "预测"]
+            },
+            {
+                id: 48,
+                name: "MAFFT version 7",
+                url: "https://mafft.cbrc.jp/alignment/server/",
+                description: "快速准确的氨基酸或核苷酸多序列比对程序，支持多种比对策略",
+                category: "tool",
+                tags: ["多序列比对", "系统进化", "序列分析"]
+            },
+            {
+                id: 49,
+                name: "RiceSuperPIRdb",
+                url: "http://www.ricesuperpir.com/",
+                description: "基于251份野生和栽培水稻高质量组装的超级泛基因组数据库，提供泛基因组图谱和变异信息",
+                category: "database",
+                tags: ["数据库", "水稻", "泛基因组"]
+            },
+            {
+                id: 50,
+                name: "Plant CBP60 Protein Family Database",
+                url: "https://cbp60db.wlu.ca/",
+                description: "植物界CBP60蛋白家族数据库，包含2000多个CBP60蛋白的序列、结构和功能信息",
+                category: "database",
+                tags: ["CBP60", "植物免疫", "蛋白质家族"]
+            },
+            {
+                id: 51,
+                name: "JASPAR",
+                url: "https://jaspar.elixir.no/",
+                description: "JASPAR CORE数据库包含经过整理的、非冗余的转录因子结合位点谱，基于实验验证数据",
+                category: "database",
+                tags: ["转录因子", "结合位点", "基序"]
+            },
+            {
+                id: 52,
+                name: "PlantRegMap - 植物调控组学数据库",
+                url: "https://plantregmap.gao-lab.org/binding_site_prediction.php",
+                description: "植物调控组学数据库，提供转录因子结合位点预测和调控网络分析工具",
+                category: "database",
+                tags: ["转录因子", "结合位点预测", "调控网络"]
+            },
+            {
+                id: 53,
+                name: "百格基因 - SeedSeek",
+                url: "https://www.seedseek.cn/",
+                description: "种质资源和遗传材料平台，提供水稻等作物的种质资源和基因编辑材料",
+                category: "material",
+                tags: ["种质资源", "水稻", "遗传材料"]
+            },
+            {
+                id: 54,
+                name: "伯远生物 - BIORUN",
+                url: "https://www.biorun.com/",
+                description: "综合分子生物学服务提供商，提供水稻遗传转化、蛋白质组学和分子互作实验服务",
+                category: "material",
+                tags: ["分子生物学服务", "水稻转化", "蛋白质组学"]
+            },
+            {
+                id: 55,
+                name: "擎科生物 - TSINGKE",
+                url: "https://www.tsingke.com.cn/",
+                description: "合成生物学公司，提供基因合成、引物合成、CRISPR基因编辑等服务",
+                category: "material",
+                tags: ["基因合成", "引物合成", "CRISPR"]
+            },
+            {
+                id: 56,
+                name: "ABRC - 拟南芥生物资源中心",
+                url: "https://abrc.osu.edu/researchers",
+                description: "拟南芥生物资源中心，提供拟南芥种子、突变体和质粒等研究材料",
+                category: "material",
+                tags: ["拟南芥", "种子资源", "突变体系"]
+            },
+            {
+                id: 57,
+                name: "AraShare科学",
+                url: "https://www.arashare.cn/index",
+                description: "植物科学学术资源共享平台，提供大豆、水稻等作物的遗传转化服务",
+                category: "material",
+                tags: ["植物科学", "遗传转化", "资源共享"]
+            },
+            {
+                id: 58,
+                name: "酷来搏 - Coolaber",
+                url: "https://www.coolaber.com/",
+                description: "生命科学试剂和试剂盒提供商，专注于分子生物学和植物研究产品",
+                category: "material",
+                tags: ["试剂", "试剂盒", "分子生物学"]
+            },
+            {
+                id: 59,
+                name: "DeepPTS1",
+                url: "https://ai-biolab.cn/predict/",
+                description: "DeepPTS1通过机器学习预测分析目标蛋白是否存在过氧化物酶体定位",
+                category: "protein",
+                tags: ["亚细胞定位", "系列分析", "预测分析"]
+            },
+            {
+                id: 60,
+                name: "POPPIN",
+                url: "https://riceome.hzau.edu.cn/poppin/",
+                description: "一个以搜索为核心的水稻蛋白质相互作用组、证据记录、注释及跨物种相互作用发现平台",
+                category: "protein",
+                tags: ["Y2H", "互作预测", "蛋白互作"]
+            },
+            {
+                id: 61,
+                name: "美吉生物 - Majorbio",
+                url: "https://www.majorbio.com/",
+                description: "组学生物数据分析",
+                category: "material",
+                tags: ["RNA-Seq", "互作预测", "蛋白互作"]
+            },
+            {
+                id: 62,
+                name: "jvenn",
+                url: "https://jvenn.toulouse.inra.fr/app/example.html",
+                description: "Venn图在线绘制",
+                category: "tool",
+                tags: ["Venn图", "可视化", "数据分析"]
+            },
+        ];
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const gridContainer = document.getElementById('toolGrid');
+            const paginationContainer = document.getElementById('pagination');
+            const searchInput = document.getElementById('searchInput');
+            const filterBtns = document.querySelectorAll('.filter-btn');
+            
+            let currentCategory = 'all';
+            let currentQuery = '';
+            let currentPage = 1;
+            const itemsPerPage = 16; // 调整为每页16条，更适合2列布局
+
+            // 本地存储收藏功能
+            function getFavorites() {
+                try {
+                    const favs = localStorage.getItem('plant_bioinfo_favorites');
+                    return favs ? JSON.parse(favs) : [];
+                } catch (e) {
+                    console.error('读取收藏列表失败:', e);
+                    localStorage.removeItem('plant_bioinfo_favorites');
+                    return [];
+                }
+            }
+
+            function saveFavorites(favs) {
+                try {
+                    localStorage.setItem('plant_bioinfo_favorites', JSON.stringify(favs));
+                } catch (e) {
+                    console.error('保存收藏列表失败:', e);
+                }
+            }
+
+            function toggleFavorite(id) {
+                let favs = getFavorites();
+                if (favs.includes(id)) {
+                    favs = favs.filter(fid => fid !== id);
+                } else {
+                    favs.push(id);
+                }
+                saveFavorites(favs);
+                renderTools();
+            }
+
+            // 数据过滤和排序
+            function getProcessedData() {
+                const favs = getFavorites();
+                let data = tools.filter(item => {
+                    const matchCat = currentCategory === 'all' || item.category === currentCategory;
+                    const lowerQuery = currentQuery.toLowerCase();
+                    const matchText = item.name.toLowerCase().includes(lowerQuery) ||
+                                      (item.description && item.description.toLowerCase().includes(lowerQuery)) ||
+                                      (item.tags && item.tags.some(t => t.toLowerCase().includes(lowerQuery)));
+                    return matchCat && matchText;
+                });
+
+                // 收藏的工具置顶
+                data.sort((a, b) => {
+                    const aFav = favs.includes(a.id);
+                    const bFav = favs.includes(b.id);
+                    if (aFav && !bFav) return -1;
+                    if (!aFav && bFav) return 1;
+                    return a.id - b.id; // 按ID升序排列
+                });
+
+                return data;
+            }
+
+            // 渲染分页
+            function renderPagination(totalItems) {
+                paginationContainer.innerHTML = '';
+                const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+                if (totalPages <= 1) return;
+
+                // 上一页
+                const prevLi = document.createElement('li');
+                prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+                prevLi.innerHTML = '<a class="page-link" href="#" tabindex="-1">上一页</a>';
+                prevLi.addEventListener('click', e => {
+                    e.preventDefault();
+                    if (currentPage > 1) {
+                        currentPage--;
+                        renderTools();
+                    }
+                });
+                paginationContainer.appendChild(prevLi);
+
+                // 页码
+                for (let i = 1; i <= totalPages; i++) {
+                    const li = document.createElement('li');
+                    li.className = `page-item ${currentPage === i ? 'active' : ''}`;
+                    li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+                    li.addEventListener('click', e => {
+                        e.preventDefault();
+                        currentPage = i;
+                        renderTools();
+                    });
+                    paginationContainer.appendChild(li);
+                }
+
+                // 下一页
+                const nextLi = document.createElement('li');
+                nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+                nextLi.innerHTML = '<a class="page-link" href="#">下一页</a>';
+                nextLi.addEventListener('click', e => {
+                    e.preventDefault();
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        renderTools();
+                    }
+                });
+                paginationContainer.appendChild(nextLi);
+            }
+
+            // 渲染工具卡片
+            function renderTools() {
+                gridContainer.innerHTML = '';
+                const favs = getFavorites();
+                const fullData = getProcessedData();
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                const pageData = fullData.slice(startIndex, endIndex);
+
+                if (pageData.length === 0) {
+                    gridContainer.innerHTML = '<div class="col-12 text-center text-muted py-5">未找到匹配的工具，请尝试其他关键词或分类</div>';
+                    renderPagination(fullData.length);
+                    return;
+                }
+
+                pageData.forEach(tool => {
+                    const isFav = favs.includes(tool.id);
+                    const col = document.createElement('div');
+                    col.className = 'col';
+                    col.innerHTML = `
+                        <div class="card tool-card ${isFav ? 'pinned' : ''}">
+                            <div class="card-header">
+                                <div class="flex-grow-1">
+                                    <h5 class="tool-title">${tool.name}</h5>
+                                    <a href="${tool.url}" target="_blank" class="tool-link">${tool.url}</a>
+                                </div>
+                                <button class="star-btn ${isFav ? 'filled' : ''}" title="${isFav ? '取消置顶' : '置顶收藏'}">
+                                    <i class="fas fa-star"></i>
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <p class="tool-desc">${tool.description}</p>
+                                <div>
+                                    ${tool.tags.map(tag => `<span class="tag-badge">${tag}</span>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    // 绑定收藏按钮事件
+                    const starBtn = col.querySelector('.star-btn');
+                    starBtn.addEventListener('click', () => toggleFavorite(tool.id));
+
+                    gridContainer.appendChild(col);
+                });
+
+                renderPagination(fullData.length);
+            }
+
+            // 搜索功能
+            searchInput.addEventListener('input', e => {
+                currentQuery = e.target.value.trim();
+                currentPage = 1;
+                renderTools();
+            });
+
+            // 分类筛选功能
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', e => {
+                    filterBtns.forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    currentCategory = e.target.dataset.category || 'all';
+                    currentPage = 1;
+                    renderTools();
+                });
+            });
+
+            // 初始渲染
+            renderTools();
+        });
+    </script>
+</body>
+</html>
